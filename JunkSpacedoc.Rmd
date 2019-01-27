@@ -1,0 +1,58 @@
+---
+title: "JunkSpace"
+author: "BG"
+date: "January 27, 2019"
+output: 
+  html_document: 
+    fig_caption: yes
+    keep_md: yes
+    number_sections: yes
+    toc: yes
+---
+
+```{r setup, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source( "utilz.R")
+loadLibraries()
+set.seed(100)
+```
+
+# Project Plans
+
+```{r pm}
+
+
+
+
+```
+
+
+
+
+# Data Exploration 
+
+```{r dbin, echo=FALSE}
+df <- as_tibble( rio::import(  here::here( "data_raw", "agrics_raw.xlsx") ) )
+```
+
+## Including Plots
+
+```{r explore}
+#kable( dfSummary( df ) )
+
+
+```
+
+## something fancy
+```{r wordz}
+
+var_colz = c("Where did you buy them?", "What were the inputs you purchased?", "Which alternative?", "Why did you select Agrics?", 
+             "How did you pay for the Agrics package that you purchased in the last 12 months? - Other - Text", 
+             "Please explain...32", "How has your quality of life improved?", "How has your quality of life worsened?", 
+             "Please explain your score...39", "Please explain your score...40", "Please explain your score...41",
+             "Please explain...43", "Regarding the interaction, would you say the respondent was:"
+             )
+
+map( var_colz, ~ dirty.Wordcloud.it( df[.x] ) )
+
+```
