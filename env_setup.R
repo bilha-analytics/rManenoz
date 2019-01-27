@@ -7,7 +7,7 @@
 
 ## packages ‘pandoc’, ‘patchwork’, ‘quanteda.dictionaries’, ‘rgeocodio’ are not available (for R version 3.5.2)
 
-var_env_Libz = c('here', 'ProjectTemplate', 'DiagrammeR')
+var_env_Libz = c('here', 'pander', 'ProjectTemplate', 'DiagrammeR')
 
 #rio includes jsonlite, xml, foreign, data.table. openxlsx:targeted Excel, glue:util.paste, dataCompareR:dfs compare by row or valu
 var_io_Libz = c('rio', 'openxlsx', 'sqldf', 'glue')  

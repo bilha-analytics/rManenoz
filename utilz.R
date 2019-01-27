@@ -7,14 +7,37 @@
 
 source( "env_setup.R")
 
+#####
+##
+##
+#####
+zTrim <- function (x) gsub("^\\s+|\\s+$", "", x)
+zToPercent <- function(x ){ return( paste( x*100, "%")) }
+
+
+
 ####
 ## OBJ: Consistent df type/object 
-## Things to do: col names, date fields, 
+## Things to do: col names, date fields, strip spaces, convert to lowercase, 
 ## Do at-src as need be: spread/gather 
 #####
-loadRawDataFrame <- function( fname_in_proj_dir ){
-  d <- as_tibble( rio::import(  here::here( "data_raw", fname_in_proj_dir) ) )
-  return( d )
+zLoadRawDataFrame <- function( fname_in_proj_dir ){
+  ## read file 
+  df <- as_tibble( rio::import(  here::here( "data_raw", fname_in_proj_dir) ) )
+  
+  ## case to lower and trim
+  df <- as_tibble(
+    lapply( df, function(x){
+      if( is.character(x) ) return( zTrim(tolower(x) ) )
+      else return( zTrim(x) )
+    })
+  )
+  
+  ## replace null, n/a with NA character ::TODO recheck what they mean 
+  df[ df == 'n/a'] <- NA
+  df[ df == 'null'] <- NA
+  
+  return( df )
 }
 
 
@@ -23,17 +46,30 @@ loadRawDataFrame <- function( fname_in_proj_dir ){
 ##
 ##
 #####
-anonSingleColumn <- function(db, dcol){
-  db %>% mutate(
-    !!dcol := map(db[dcol], anonymize)
-  )
+zAnonSingleColumn <- function(db, dcol){
+  #db <- db %>% mutate(
+  #  !!dcol := anonymize( dcol[[1]] )
+  #)
+  
+  db[dcol] = anonymize( dcol[[1]] ) 
   
   print( head(db[1:5]) )
+  
   return( db)
 }
-anonColumns <- function(db, ls_cols){
-  
-  return(db)
+
+
+zAnonColumns <- function(db, ls_cols){
+  return( 
+    ls_cols %>% 
+    map( ~ as.data.frame(db) %>% 
+           select(matches(.x)) %>%
+           unlist %>% anonymize 
+    ) %>%  
+    set_names( paste("Anon.", ls_cols, sep="")  ) %>%
+    bind_cols(df, .) %>% 
+    select( -ls_cols )
+  )
 }
 
 
@@ -44,13 +80,37 @@ anonColumns <- function(db, ls_cols){
 ##
 ##
 #####
-describeSampleStucture <- function( db, ls_groupers){
+zDescribeSampleStucture <- function( db, ls_grouperz){
+  c(
+    ls_grouperz %>% map(
+     ~ db %>% select( matches(.x)) %>% 
+       table %>% addmargins
+    )  %>% pander(., caption = paste("Frequencies (n) -", .x) ),
   
+    ls_grouperz %>% map(
+      ~ db %>% select( matches(.x)) %>% 
+        table %>% prop.table(.) %>% round(., 3)*100 #%>% zToPercent
+    ) %>% pander(., caption = paste("Proportions (%) -", .x) )
+  )
+}
+
+
+#####
+##
+##
+#####
+zFormatDateCol <- function(db, ls_dcolz){
+  with(db, 
+       lapply(ls_dcolz, function(x){
+      db[[x]] <<- as.Date( db[[x]], "%d/%m/%Y") 
+    }) 
+  )
+  return( db )
 }
 
 
 
-dirty.Wordcloud.it <- function(wcol ){
+zDirty.Wordcloud.it <- function(wcol ){
   allwords <- hunspell_parse( as.character(wcol ) )
   stems <- unlist( hunspell_stem( unlist(allwords)))
   words <- sort( table(stems), decreasing = TRUE) 

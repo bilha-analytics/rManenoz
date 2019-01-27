@@ -17,6 +17,8 @@ loadLibraries()
 ## read data file 
 df <- as_tibble( rio::import(  here::here( "data_raw", "agrics_raw.xlsx") ) )
 
+df <- zLoadRawDataFrame( "agrics_raw.xlsx" )
+
 ## glimpse it 
 names( df )
 glimpse( df )
@@ -168,9 +170,140 @@ mermaid("gantt
 
 anonymize( df$`Researcher name` )
 
+names( df )
 
-     
-     
+named <- c("Farmer/supplier name" , "Researcher name", "Farmer branch", "Farmer county/region")
+
+named2 <- c("Farmer/supplier name" , "Farmer branch")
+
+catz <- c( "Researcher name", "Farmer county/region")
+
+
+df <- named %>% 
+  map( ~ as.data.frame(df) %>% 
+         select(matches(.x)) %>%
+         unlist %>% anonymize 
+       ) %>%  
+  set_names( paste("Anon.", named, sep="")  ) %>%
+  bind_cols(df, .) %>% 
+  select( -named )
+
+by(df[c(4,16)], df$`Anon.Researcher name`, dfSummary) 
+
+
+numeric_colz <- df %>% select_if( is.numeric ) %>% names
+print( numeric_colz )
+
+char_colz <- df %>% select_if( is.character ) %>% names
+print( char_colz )
+
+
+
+df <- anonColumns( df, named2)     
+
+
+## FAILS b/c??
+df %>% select_if( is.numeric ) %>% summarise_at( funs(n(), mean, median) )
+## WORKS
+d <- df %>% summarise_if( is.numeric, funs(n(), mean, median))
+pander::pandoc.table( d )
+d <- df %>% summarise_if( is.character, funs(nlevels(as.factor(.) ), nmiss=sum(is.na(.))))
+pander::pandoc.table( d )
+
+dfSummary (df) 
+
+
+df %>% group_by( 'Researcher name' ) %>% summarise( freq_n=nlevels(.))
+
+
+
+df <- zLoadRawDataFrame( "agrics_raw.xlsx" )
+df <- zAnonColumns( df, named2 )
+df <- zFormatDateCol(df,  c("Date of interview (dd/mm/yy)") )
+zDescribeSampleStucture(df, catz)
+df <- zFlagIssues(df)
+View( sample_n(df, 10) )
+dfSummary (df)
+
+
+
+table( df$`Researcher name`)
+table( df$`Farmer county/region`)
+table( df$`Researcher name`, df$`Farmer county/region`)
+
+
+
+
+##TODO: chuck date column prior 
+#df <- df %>% select_if(is.character ) %>% as.data.frame %>% map( ~ tolower)
+#df <- map( df, tolower)
+zTrim <- function (x) gsub("^\\s+|\\s+$", "", x)
+
+df <- as_tibble(
+  lapply( df, function(x){
+    if( is.character(x) ) return( zTrim(tolower(x) ) )
+    else return( zTrim(x) )
+  })
+)
+head(df)
+View( sample_n(df, 30) )
+dfSummary (df)
+
+
+
+###Flag OR issues 
+#zDescribeSampleStucture(df, char_colz  )
+# Fix Obvious  
+df$`Researcher name`[which( df$`Researcher name` == "julie ouma")] <- "juliet ouma" 
+
+# Flag errnoenous dates
+df[["ERR__Date_Field"]] <- ifelse( is.na( df$`Date of interview (dd/mm/yy)` ), 1, 0 ) 
+df[["ERR__IncomeSource1"]] <- ifelse( is.na( df$`Can you please tell me what were the main sources of income were for your family in the last 12 months? - Income source 1 - Text` ), 1, 0 ) 
+
+df[["ERR__IncomeSource1_AgricPurch"]] <- ifelse( ((is.na( df$`Can you please tell me what were the main sources of income were for your family in the last 12 months? - Income source 1 - Text` ) && 
+                                         !is.na( df$`Did you ever purchase Agrics inputs/packages for this first income source?`)) || 
+                                           ( !is.na( df$`Can you please tell me what were the main sources of income were for your family in the last 12 months? - Income source 1 - Text` ) && 
+                                              is.na( df$`Did you ever purchase Agrics inputs/packages for this first income source?`)) )
+                                         , 1, 0 ) 
+
+df[["ERR__IncomeSource2_AgricPurch"]] <- ifelse( ((is.na( df$`Can you please tell me what were the main sources of income were for your family in the last 12 months? - Income source 2 - Text` ) && 
+                                         !is.na( df$`Did you ever purchase Agrics inputs/packages for this second income source?`)) || 
+                                           ( !is.na( df$`Can you please tell me what were the main sources of income were for your family in the last 12 months? - Income source 2 - Text` ) && 
+                                              is.na( df$`Did you ever purchase Agrics inputs/packages for this second income source?`)) )
+                                         , 1, 0 ) 
+
+df[["ERR__IncomeSource3_AgricPurch"]] <- ifelse( ((is.na( df$`Can you please tell me what were the main sources of income were for your family in the last 12 months? - Income source 3 - Text` ) && 
+                                         !is.na( df$`Did you ever purchase Agrics inputs/packages for this third income source?`)) || 
+                                           ( !is.na( df$`Can you please tell me what were the main sources of income were for your family in the last 12 months? - Income source 3 - Text` ) && 
+                                              is.na( df$`Did you ever purchase Agrics inputs/packages for this third income source?`)) )
+                                         , 1, 0 ) 
+
+df[["ERR__IncomeSource4_AgricPurch"]] <- ifelse( ((is.na( df$`Can you please tell me what were the main sources of income were for your family in the last 12 months? - Income source 4 - Text` ) && 
+                                         !is.na( df$`Did you ever purchase Agrics inputs/packages for this fourth income source?`)) || 
+                                           ( !is.na( df$`Can you please tell me what were the main sources of income were for your family in the last 12 months? - Income source 4 - Text` ) && 
+                                              is.na( df$`Did you ever purchase Agrics inputs/packages for this fourth income source?`)) )
+                                         , 1, 0 ) 
+
+
+df[["ERR__CreditOtherSellers"]] <- ifelse( ((is.na( df$`Have you purchased inputs on credit from other sellers in the past?` ) && 
+                                                     !is.na( df$`Where did you buy them?`)) || 
+                                                    ( !is.na( df$`Have you purchased inputs on credit from other sellers in the past?` ) && 
+                                                        is.na( df$`Where did you buy them?`)) )
+                                                 , 1, 0 ) 
+
+df[["ERR__Challenges"]] <- ifelse( ((is.na( df$`Have you experienced challenges so far with Agrics?` ) && 
+                                               !is.na( df$`Has the challenge been resolved?`)) || 
+                                              ( !is.na( df$`Have you experienced challenges so far with Agrics?` ) && 
+                                                  is.na( df$`Has the challenge been resolved?`)) )
+                                           , 1, 0 ) 
+
+
+
+
+
+zDescribeSampleStucture(df, catz)
+
+
 ## using NLP to fix 
 spacy_initialize() 
 spacy_tokenize( as.character(df$`What were the inputs you purchased?`))

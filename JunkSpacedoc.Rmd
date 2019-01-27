@@ -13,6 +13,8 @@ output:
 ```{r setup, include=FALSE, cache=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 source( "utilz.R")
+source( "consts.R")
+
 loadLibraries()
 set.seed(100)
 ```
@@ -21,6 +23,12 @@ set.seed(100)
 
 ```{r pm}
 
+
+var.Anon.Colz <-  c("Farmer/supplier name" , "Farmer branch")
+
+var.Group.Byz <-  c( "Researcher name", "Farmer county/region")
+
+var.Date.Colz <- c("Date of interview (dd/mm/yy)") 
 
 
 
@@ -31,15 +39,42 @@ set.seed(100)
 
 # Data Exploration 
 
+#Load DB 
 ```{r dbin, echo=FALSE}
-df <- as_tibble( rio::import(  here::here( "data_raw", "agrics_raw.xlsx") ) )
+df <- zLoadRawDataFrame( "agrics_raw.xlsx" )
+
+df <- zAnonColumns( df, var.Anon.Colz )
+
+df <- zFormatDateCol(df,  var.Date.Colz )
+
 ```
 
-## Including Plots
+## Review Records
 
-```{r explore}
+```{r samplestruct}
 #kable( dfSummary( df ) )
 
+pander( addmargins(table( df$`Researcher name`, df$`Farmer county/region`), margin = c(1,2) ) , caption = "Number of records by Researcher and Region")
+
+zDescribeSampleStucture(df, var.Group.Byz)
+
+dfSummary( df ) 
+```
+
+
+```{r missings}
+# Fix Obvious  
+df$`Researcher name`[which( df$`Researcher name` == "julie ouma")] <- "juliet ouma" 
+
+## Date Values incorrect 
+df[["ERR__Date_Field"]] <- ifelse( is.na( df$`Date of interview (dd/mm/yy)` ), 1, 0 )  
+
+## Walkthrough issues 
+zFlagIssues(df)
+
+
+## missing values etc
+pander(df %>% summarise_if( is.character, funs(nlevels(as.factor(.) ), nmiss=sum(is.na(.)))) , caption = "Qual Variables - Uniques and Missing Values")
 
 ```
 
@@ -53,6 +88,6 @@ var_colz = c("Where did you buy them?", "What were the inputs you purchased?", "
              "Please explain...43", "Regarding the interaction, would you say the respondent was:"
              )
 
-map( var_colz, ~ dirty.Wordcloud.it( df[.x] ) )
+map( var_colz, ~ zDirty.Wordcloud.it( df[.x] ) )
 
 ```
